@@ -126,6 +126,13 @@ def blocks(run: Dict[str, Any]) -> List[Dict[str, Any]]:
                 buttons.append({"type": "button",
                                 "text": {"type": "plain_text", "text": f"{label} sign-off"},
                                 "action_id": f"{SIGN}:{run_id}:{role}", "value": role})
+    # Owners can change before the checklist exists — a requestor hands over, or
+    # Delivery reassigns. Reachable here, not only from the Steps 2-6 message.
+    if not ingestion.complete(state):
+        from gate_blocks import OWNERS_ACTION
+
+        buttons.append({"type": "button", "text": {"type": "plain_text", "text": "Change owners"},
+                        "action_id": f"{OWNERS_ACTION}:{run_id}", "value": "owners"})
     if buttons:
         out.append({"type": "actions", "elements": buttons})
 

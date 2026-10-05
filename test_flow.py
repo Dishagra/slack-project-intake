@@ -141,6 +141,28 @@ app.on_ingest_go(ack, {"user": {"id": "U_RANDOM"}, "channel": {"id": "C1"}}, {"a
 check("an outsider's go is refused privately", len(c3.ephemerals) == 1 and DEL in c3.ephemerals[0]["text"])
 check("and nothing is announced", c3.posts == [])
 
+# --- owners can change during ingestion ------------------------------------
+_, rid4 = submit({**BASE, "ingestion_kind": "new", "project_name": "Handover", "spec_doc": "https://x.test/s",
+                  "task_volume": "1", "tat_agreed": "1w", "milestones": "m"})
+ids = [e.get("action_id", "") for b in __import__("ingestion_blocks").blocks(gates.get_run(rid4))
+       if b["type"] == "actions" for e in b["elements"]]
+check("Change owners is reachable from the ingestion message",
+      any(i.startswith("gate_owners:") for i in ids))
+
+# editing the requestor field moves the sign-off right with it
+NEW_REQ = "U_NEWREQ"
+ingestion.set_signed(rid4, ingestion.ELEMENT_KEYS, DEL)
+ingestion.decide(rid4, "go", DEL)
+run4 = gates.get_run(rid4)
+record = dict(run4["record"], requestor=NEW_REQ)
+fields = [f for f in visible_fields(app.SCHEMA, "sample", record) if is_input(f)]
+app._apply_edit(FakeClient(), rid4, record, "sample", fields, DEL)
+check("editing the requestor updates the owner list", gates.get_run(rid4)["owners"]["requestor"] == NEW_REQ)
+ok, msg, _ = ingestion.sign_off(rid4, "requestor", REQ)
+check("the previous requestor can no longer sign", not ok, msg)
+ok, msg, _ = ingestion.sign_off(rid4, "requestor", NEW_REQ)
+check("the new requestor can", ok, msg)
+
 print()
 print(f"{len(failures)} failure(s)" if failures else "all checks passed")
 raise SystemExit(1 if failures else 0)

@@ -917,6 +917,13 @@ def _apply_edit(client, run_id, state, project_type, fields, user_id) -> None:
     record[TYPE_KEY] = project_type
 
     changes = gates.update_record(run_id, record, project_name, project_type, user_id)
+
+    # Owner fields live in the record, but sign-offs check the owner list. Without
+    # this, editing the requestor would show the new name and still accept only
+    # the old person's signature.
+    wanted = {k: record[k] for k in OWNER_KEYS if record.get(k)}
+    if wanted != {k: v for k, v in run["owners"].items() if k in OWNER_KEYS}:
+        gates.set_owners(run_id, wanted, user_id)
     if not changes:
         client.chat_postEphemeral(
             channel=run["channel"], user=user_id, thread_ts=run["thread_ts"],
@@ -1038,6 +1045,7 @@ def on_owners_submitted(ack, body, view, client):
             blocks=[{"type": "section", "text": {"type": "mrkdwn", "text": text}}],
         )
     _refresh(client, run_id)
+    _refresh_ingestion(client, run_id)
 
 
 @app.action(re.compile(rf"^{CLOSE_ACTION}:"))
