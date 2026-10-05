@@ -44,7 +44,9 @@ _services: Optional[Dict[str, Any]] = None
 
 
 def enabled() -> bool:
-    return bool(FOLDER_ID and CREDS_PATH)
+    # The key file has to exist, not just be configured — a missing key would
+    # otherwise turn every write into a failure that DMs whoever submitted.
+    return bool(FOLDER_ID and CREDS_PATH and os.path.exists(CREDS_PATH))
 
 
 def _get_services() -> Dict[str, Any]:

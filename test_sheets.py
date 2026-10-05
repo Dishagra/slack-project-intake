@@ -203,6 +203,12 @@ check("tidy preserves every value", all(
     for row, orig in zip(after, before)
 ), f"{before}\n{after}")
 
+# --- a configured but missing key counts as disabled ----------------------
+_saved = sheets.CREDS_PATH
+sheets.CREDS_PATH = "/nonexistent/service-account.json"
+check("missing key file disables sheets", not sheets.enabled())
+sheets.CREDS_PATH = _saved
+
 # --- disabled mode is a silent no-op, not a crash ------------------------
 sheets.SHEET_ID = None
 check("disabled reports disabled", not sheets.enabled())

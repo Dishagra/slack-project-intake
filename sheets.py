@@ -92,7 +92,9 @@ _worksheet = None
 
 
 def enabled() -> bool:
-    return bool(SHEET_ID and CREDS_PATH)
+    # The key file has to exist, not just be configured — a missing key would
+    # otherwise turn every write into a failure that DMs whoever submitted.
+    return bool(SHEET_ID and CREDS_PATH and os.path.exists(CREDS_PATH))
 
 
 def sheet_url() -> Optional[str]:
