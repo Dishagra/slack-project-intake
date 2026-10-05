@@ -1,0 +1,9 @@
+.venv/
+.env
+service-account.json
+__pycache__/
+gates.db
+preview.html
+app.pid
+logs/
+.DS_Store

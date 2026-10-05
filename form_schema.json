@@ -1,0 +1,1503 @@
+{
+  "_comment": "Edit this file to change the form. No Python changes needed. A field becomes a re-render trigger automatically if any other field's show_if references it. Field keys must be unique across common_fields plus any single project type.",
+  "title": "New Project Intake",
+  "submit_label": "Submit",
+  "common_fields": [
+    {
+      "key": "project_name",
+      "label": "Project name",
+      "type": "text",
+      "placeholder": "e.g. Multi-Turn Attack Bench"
+    },
+    {
+      "key": "account",
+      "label": "Customer",
+      "type": "text",
+      "placeholder": "e.g. Tencent"
+    },
+    {
+      "key": "workstream",
+      "label": "Workstream",
+      "type": "select",
+      "options": [
+        {
+          "label": "Red teaming / adversarial",
+          "value": "red_team"
+        },
+        {
+          "label": "Model evaluation / benchmark",
+          "value": "eval"
+        },
+        {
+          "label": "Data collection",
+          "value": "collection"
+        },
+        {
+          "label": "Annotation / labeling",
+          "value": "annotation"
+        },
+        {
+          "label": "RLHF / preference data",
+          "value": "rlhf"
+        },
+        {
+          "label": "Other",
+          "value": "other"
+        }
+      ]
+    },
+    {
+      "key": "workstream_other",
+      "label": "Describe the workstream",
+      "type": "text",
+      "show_if": {
+        "field": "workstream",
+        "in": [
+          "other"
+        ]
+      }
+    },
+    {
+      "key": "research_owner",
+      "label": "Research owner",
+      "type": "user"
+    },
+    {
+      "key": "delivery_owner",
+      "label": "Delivery owner",
+      "type": "user"
+    },
+    {
+      "key": "sales_owner",
+      "label": "Sales owner",
+      "type": "user"
+    },
+    {
+      "key": "urgency",
+      "label": "Urgency",
+      "type": "select",
+      "options": [
+        {
+          "label": "Critical",
+          "value": "critical"
+        },
+        {
+          "label": "High",
+          "value": "high"
+        },
+        {
+          "label": "Medium",
+          "value": "medium"
+        },
+        {
+          "label": "Low",
+          "value": "low"
+        }
+      ]
+    },
+    {
+      "key": "urgency_justification",
+      "label": "Why is this critical?",
+      "type": "textarea",
+      "hint": "Required for Critical only.",
+      "show_if": {
+        "field": "urgency",
+        "in": [
+          "critical"
+        ]
+      }
+    },
+    {
+      "key": "target_date",
+      "label": "Target delivery date",
+      "type": "date"
+    }
+  ],
+  "project_types": {
+    "sample": {
+      "label": "Sample",
+      "_comment": "Mirrors Steps 0 and 1 of the Sample Creation Checklist. Steps 2-6 are gates that run after intake, not intake fields.",
+      "fields": [
+        {
+          "key": "step0_header",
+          "label": "— Step 0: before any build starts —",
+          "type": "context"
+        },
+        {
+          "key": "pipeline_relevance",
+          "label": "Relevance across the pipeline",
+          "type": "textarea",
+          "hint": "Where else does this apply beyond this one customer?",
+          "optional": true
+        },
+        {
+          "key": "existing_asset",
+          "label": "Existing asset we could reuse?",
+          "type": "radio",
+          "options": [
+            {
+              "label": "Yes",
+              "value": "yes"
+            },
+            {
+              "label": "No",
+              "value": "no"
+            },
+            {
+              "label": "Not checked yet",
+              "value": "unchecked"
+            }
+          ]
+        },
+        {
+          "key": "existing_asset_name",
+          "label": "Which asset, and what changes?",
+          "type": "text",
+          "placeholder": "e.g. ARGO — extend taxonomy to multi-turn",
+          "show_if": {
+            "field": "existing_asset",
+            "in": [
+              "yes"
+            ]
+          }
+        },
+        {
+          "key": "go_decision",
+          "label": "Should we do it?",
+          "type": "radio",
+          "options": [
+            {
+              "label": "Go",
+              "value": "go"
+            },
+            {
+              "label": "No go",
+              "value": "no_go"
+            },
+            {
+              "label": "Needs discussion",
+              "value": "discuss"
+            }
+          ]
+        },
+        {
+          "key": "decision_notes",
+          "label": "What has to be resolved first?",
+          "type": "textarea",
+          "show_if": {
+            "field": "go_decision",
+            "in": [
+              "no_go",
+              "discuss"
+            ]
+          }
+        },
+        {
+          "key": "intake_stage",
+          "label": "How far along is this?",
+          "type": "radio",
+          "hint": "Pick the first one and the research questions stay hidden — answer them later in the checklist thread.",
+          "options": [
+            {
+              "label": "Just scoping — nothing started",
+              "value": "scoping"
+            },
+            {
+              "label": "Research underway",
+              "value": "underway"
+            },
+            {
+              "label": "Ready to build",
+              "value": "ready"
+            }
+          ]
+        },
+        {
+          "key": "step1_header",
+          "label": "— Step 1: research and scope —",
+          "type": "context",
+          "show_if": {
+            "field": "intake_stage",
+            "in": [
+              "underway",
+              "ready"
+            ]
+          }
+        },
+        {
+          "key": "benchmark_status",
+          "label": "Adjacent or customer-published benchmark",
+          "type": "select",
+          "options": [
+            {
+              "label": "Found — customer published",
+              "value": "found_customer"
+            },
+            {
+              "label": "Found — adjacent",
+              "value": "found_adjacent"
+            },
+            {
+              "label": "Confirmed none exists",
+              "value": "confirmed_none"
+            },
+            {
+              "label": "Not checked yet",
+              "value": "unchecked"
+            }
+          ],
+          "optional": true,
+          "show_if": {
+            "field": "intake_stage",
+            "in": [
+              "underway",
+              "ready"
+            ]
+          },
+          "required_if": {
+            "field": "intake_stage",
+            "in": [
+              "underway",
+              "ready"
+            ]
+          }
+        },
+        {
+          "key": "benchmark_link",
+          "label": "Benchmark link",
+          "type": "url",
+          "show_if": {
+            "field": "benchmark_status",
+            "in": [
+              "found_customer",
+              "found_adjacent"
+            ]
+          },
+          "optional": true
+        },
+        {
+          "key": "endpoints_probed",
+          "label": "Endpoints probed",
+          "type": "multi_select",
+          "options": [
+            {
+              "label": "Customer-provided",
+              "value": "customer"
+            },
+            {
+              "label": "SOTA / public",
+              "value": "sota"
+            },
+            {
+              "label": "None yet",
+              "value": "none"
+            }
+          ],
+          "optional": true,
+          "show_if": {
+            "field": "intake_stage",
+            "in": [
+              "underway",
+              "ready"
+            ]
+          },
+          "required_if": {
+            "field": "intake_stage",
+            "in": [
+              "underway",
+              "ready"
+            ]
+          }
+        },
+        {
+          "key": "probe_blocker",
+          "label": "What is blocking probing?",
+          "type": "textarea",
+          "show_if": {
+            "field": "endpoints_probed",
+            "in": [
+              "none"
+            ]
+          },
+          "optional": true
+        },
+        {
+          "key": "failure_pattern",
+          "label": "The repeatable failure pattern",
+          "type": "textarea",
+          "hint": "One pattern the model actually shows — not a list of small issues.",
+          "optional": true,
+          "show_if": {
+            "field": "intake_stage",
+            "in": [
+              "underway",
+              "ready"
+            ]
+          },
+          "required_if": {
+            "field": "intake_stage",
+            "in": [
+              "underway",
+              "ready"
+            ]
+          }
+        },
+        {
+          "key": "taxonomy_status",
+          "label": "Taxonomy v0",
+          "type": "select",
+          "options": [
+            {
+              "label": "Drafted, traces to the pattern",
+              "value": "v0_ready"
+            },
+            {
+              "label": "In progress",
+              "value": "drafting"
+            },
+            {
+              "label": "Not started",
+              "value": "not_started"
+            }
+          ],
+          "optional": true,
+          "show_if": {
+            "field": "intake_stage",
+            "in": [
+              "underway",
+              "ready"
+            ]
+          },
+          "required_if": {
+            "field": "intake_stage",
+            "in": [
+              "underway",
+              "ready"
+            ]
+          }
+        },
+        {
+          "key": "taxonomy_link",
+          "label": "Taxonomy doc link",
+          "type": "url",
+          "show_if": {
+            "field": "taxonomy_status",
+            "in": [
+              "v0_ready",
+              "drafting"
+            ]
+          },
+          "optional": true
+        },
+        {
+          "key": "delivery_header",
+          "label": "— Step 1, in parallel: delivery —",
+          "type": "context",
+          "show_if": {
+            "field": "intake_stage",
+            "in": [
+              "underway",
+              "ready"
+            ]
+          }
+        },
+        {
+          "key": "annotator_profile",
+          "label": "Annotator profile and sourcing",
+          "type": "select",
+          "options": [
+            {
+              "label": "Decided",
+              "value": "decided"
+            },
+            {
+              "label": "In progress",
+              "value": "in_progress"
+            },
+            {
+              "label": "Not started",
+              "value": "not_started"
+            }
+          ],
+          "optional": true,
+          "show_if": {
+            "field": "intake_stage",
+            "in": [
+              "underway",
+              "ready"
+            ]
+          },
+          "required_if": {
+            "field": "intake_stage",
+            "in": [
+              "ready"
+            ]
+          }
+        },
+        {
+          "key": "annotator_notes",
+          "label": "Profile / sourcing notes",
+          "type": "textarea",
+          "hint": "Expertise, language, headcount, where they come from.",
+          "show_if": {
+            "field": "annotator_profile",
+            "in": [
+              "decided",
+              "in_progress"
+            ]
+          },
+          "optional": true
+        },
+        {
+          "key": "guideline_v0",
+          "label": "Guideline v0 drafted from taxonomy v0?",
+          "type": "radio",
+          "options": [
+            {
+              "label": "Yes",
+              "value": "yes"
+            },
+            {
+              "label": "In progress",
+              "value": "in_progress"
+            },
+            {
+              "label": "Not started",
+              "value": "no"
+            }
+          ],
+          "optional": true,
+          "show_if": {
+            "field": "intake_stage",
+            "in": [
+              "underway",
+              "ready"
+            ]
+          },
+          "required_if": {
+            "field": "intake_stage",
+            "in": [
+              "ready"
+            ]
+          }
+        },
+        {
+          "key": "lifecycle_mapped",
+          "label": "Pipeline stages and task lifecycle mapped?",
+          "type": "radio",
+          "options": [
+            {
+              "label": "Yes",
+              "value": "yes"
+            },
+            {
+              "label": "In progress",
+              "value": "in_progress"
+            },
+            {
+              "label": "Not started",
+              "value": "no"
+            }
+          ],
+          "optional": true,
+          "show_if": {
+            "field": "intake_stage",
+            "in": [
+              "underway",
+              "ready"
+            ]
+          },
+          "required_if": {
+            "field": "intake_stage",
+            "in": [
+              "ready"
+            ]
+          }
+        },
+        {
+          "key": "eng_header",
+          "label": "— Step 1, in parallel: engineering —",
+          "type": "context",
+          "show_if": {
+            "field": "intake_stage",
+            "in": [
+              "underway",
+              "ready"
+            ]
+          }
+        },
+        {
+          "key": "endpoint_access",
+          "label": "Endpoint access",
+          "type": "select",
+          "options": [
+            {
+              "label": "Secured",
+              "value": "secured"
+            },
+            {
+              "label": "Pending",
+              "value": "pending"
+            },
+            {
+              "label": "Blocked",
+              "value": "blocked"
+            }
+          ],
+          "optional": true,
+          "show_if": {
+            "field": "intake_stage",
+            "in": [
+              "underway",
+              "ready"
+            ]
+          },
+          "required_if": {
+            "field": "intake_stage",
+            "in": [
+              "ready"
+            ]
+          }
+        },
+        {
+          "key": "access_blocker_owner",
+          "label": "Who is unblocking access?",
+          "type": "user",
+          "show_if": {
+            "field": "endpoint_access",
+            "in": [
+              "pending",
+              "blocked"
+            ]
+          },
+          "optional": true
+        },
+        {
+          "key": "harness_status",
+          "label": "Eval harness / annotation surface",
+          "type": "select",
+          "options": [
+            {
+              "label": "Ready",
+              "value": "ready"
+            },
+            {
+              "label": "In progress",
+              "value": "in_progress"
+            },
+            {
+              "label": "Not started",
+              "value": "not_started"
+            }
+          ],
+          "optional": true,
+          "show_if": {
+            "field": "intake_stage",
+            "in": [
+              "underway",
+              "ready"
+            ]
+          },
+          "required_if": {
+            "field": "intake_stage",
+            "in": [
+              "ready"
+            ]
+          }
+        },
+        {
+          "key": "harness_gap",
+          "label": "What still has to be built?",
+          "type": "textarea",
+          "show_if": {
+            "field": "harness_status",
+            "in": [
+              "in_progress",
+              "not_started"
+            ]
+          },
+          "optional": true
+        },
+        {
+          "key": "plan_header",
+          "label": "— Seed set and quality plan —",
+          "type": "context",
+          "show_if": {
+            "field": "intake_stage",
+            "in": [
+              "underway",
+              "ready"
+            ]
+          }
+        },
+        {
+          "key": "seed_count",
+          "label": "Seed samples planned (2–5)",
+          "type": "number",
+          "decimal": false,
+          "min_value": 2,
+          "max_value": 5,
+          "optional": true,
+          "show_if": {
+            "field": "intake_stage",
+            "in": [
+              "underway",
+              "ready"
+            ]
+          },
+          "required_if": {
+            "field": "intake_stage",
+            "in": [
+              "ready"
+            ]
+          }
+        },
+        {
+          "key": "sample_size",
+          "label": "Full sample size after expansion",
+          "type": "number",
+          "decimal": false,
+          "optional": true,
+          "show_if": {
+            "field": "intake_stage",
+            "in": [
+              "underway",
+              "ready"
+            ]
+          }
+        },
+        {
+          "key": "uses_synthetic",
+          "label": "Any synthetic content?",
+          "type": "radio",
+          "options": [
+            {
+              "label": "Yes",
+              "value": "yes"
+            },
+            {
+              "label": "No",
+              "value": "no"
+            }
+          ],
+          "optional": true,
+          "show_if": {
+            "field": "intake_stage",
+            "in": [
+              "underway",
+              "ready"
+            ]
+          },
+          "required_if": {
+            "field": "intake_stage",
+            "in": [
+              "ready"
+            ]
+          }
+        },
+        {
+          "key": "synthetic_pct",
+          "label": "Synthetic share (%)",
+          "type": "number",
+          "decimal": true,
+          "min_value": 0,
+          "max_value": 70,
+          "hint": "Hard cap is 70%.",
+          "show_if": {
+            "field": "uses_synthetic",
+            "in": [
+              "yes"
+            ]
+          },
+          "optional": true
+        },
+        {
+          "key": "hitl_role",
+          "label": "Human-in-the-loop role",
+          "type": "textarea",
+          "hint": "Documented and justified — what the human actually does, not just that one exists.",
+          "show_if": {
+            "field": "uses_synthetic",
+            "in": [
+              "yes"
+            ]
+          },
+          "optional": true
+        },
+        {
+          "key": "spec_doc_link",
+          "label": "Spec doc link",
+          "type": "url",
+          "optional": true,
+          "hint": "Same spec doc used for the T&Q independent audit. Do not write a new one.",
+          "show_if": {
+            "field": "intake_stage",
+            "in": [
+              "underway",
+              "ready"
+            ]
+          }
+        }
+      ]
+    },
+    "pilot": {
+      "label": "Pilot",
+      "fields": [
+        {
+          "key": "sow_status",
+          "label": "SOW status",
+          "type": "select",
+          "options": [
+            {
+              "label": "Signed",
+              "value": "signed"
+            },
+            {
+              "label": "In legal review",
+              "value": "review"
+            },
+            {
+              "label": "Not started",
+              "value": "none"
+            }
+          ]
+        },
+        {
+          "key": "sow_link",
+          "label": "SOW link",
+          "type": "url",
+          "show_if": {
+            "field": "sow_status",
+            "in": [
+              "signed",
+              "review"
+            ]
+          }
+        },
+        {
+          "key": "sow_blocker_owner",
+          "label": "Who is unblocking the SOW?",
+          "type": "user",
+          "show_if": {
+            "field": "sow_status",
+            "in": [
+              "none",
+              "review"
+            ]
+          }
+        },
+        {
+          "key": "preceding_sample",
+          "label": "Which sample led to this?",
+          "type": "text",
+          "optional": true,
+          "hint": "Project name of the sample, if there was one."
+        },
+        {
+          "key": "pilot_value",
+          "label": "Pilot contract value (USD)",
+          "type": "number",
+          "decimal": true
+        },
+        {
+          "key": "duration_weeks",
+          "label": "Pilot duration (weeks)",
+          "type": "number",
+          "decimal": false
+        },
+        {
+          "key": "pilot_volume",
+          "label": "Total volume (units)",
+          "type": "number",
+          "decimal": false
+        },
+        {
+          "key": "headcount",
+          "label": "Contributors needed",
+          "type": "number",
+          "decimal": false,
+          "optional": true
+        },
+        {
+          "key": "expertise",
+          "label": "Expertise required",
+          "type": "multi_select",
+          "options": [
+            {
+              "label": "Generalist",
+              "value": "generalist"
+            },
+            {
+              "label": "Software engineering",
+              "value": "swe"
+            },
+            {
+              "label": "Medical",
+              "value": "medical"
+            },
+            {
+              "label": "Legal",
+              "value": "legal"
+            },
+            {
+              "label": "Finance",
+              "value": "finance"
+            },
+            {
+              "label": "STEM / PhD",
+              "value": "phd"
+            },
+            {
+              "label": "Non-English language",
+              "value": "language"
+            }
+          ],
+          "optional": true
+        },
+        {
+          "key": "languages",
+          "label": "Languages / locales",
+          "type": "text",
+          "show_if": {
+            "field": "expertise",
+            "in": [
+              "language"
+            ]
+          },
+          "optional": true
+        },
+        {
+          "key": "contains_pii",
+          "label": "Does this touch PII or client-confidential data?",
+          "type": "radio",
+          "options": [
+            {
+              "label": "Yes",
+              "value": "yes"
+            },
+            {
+              "label": "No",
+              "value": "no"
+            },
+            {
+              "label": "Unsure",
+              "value": "unsure"
+            }
+          ],
+          "optional": true
+        },
+        {
+          "key": "pii_categories",
+          "label": "Which categories?",
+          "type": "checkboxes",
+          "options": [
+            {
+              "label": "Names",
+              "value": "names"
+            },
+            {
+              "label": "Contact info",
+              "value": "contact"
+            },
+            {
+              "label": "Government IDs",
+              "value": "gov_id"
+            },
+            {
+              "label": "Health data",
+              "value": "health"
+            },
+            {
+              "label": "Financial data",
+              "value": "financial"
+            },
+            {
+              "label": "Client proprietary model outputs",
+              "value": "client_ip"
+            }
+          ],
+          "show_if": {
+            "field": "contains_pii",
+            "in": [
+              "yes",
+              "unsure"
+            ]
+          },
+          "optional": true
+        },
+        {
+          "key": "dpa_owner",
+          "label": "DPA / legal review owner",
+          "type": "user",
+          "show_if": {
+            "field": "contains_pii",
+            "in": [
+              "yes"
+            ]
+          },
+          "optional": true
+        },
+        {
+          "key": "tooling",
+          "label": "Tooling",
+          "type": "select",
+          "options": [
+            {
+              "label": "Internal platform",
+              "value": "internal"
+            },
+            {
+              "label": "Customer's tool",
+              "value": "client"
+            },
+            {
+              "label": "Third-party vendor tool",
+              "value": "vendor"
+            },
+            {
+              "label": "Needs to be built",
+              "value": "build"
+            }
+          ],
+          "optional": true
+        },
+        {
+          "key": "vendor_name",
+          "label": "Which tool / vendor?",
+          "type": "text",
+          "show_if": {
+            "field": "tooling",
+            "in": [
+              "vendor",
+              "client"
+            ]
+          },
+          "optional": true
+        },
+        {
+          "key": "build_scope",
+          "label": "What has to be built, and by when?",
+          "type": "textarea",
+          "show_if": {
+            "field": "tooling",
+            "in": [
+              "build"
+            ]
+          },
+          "optional": true
+        },
+        {
+          "key": "uses_synthetic",
+          "label": "Any synthetic content?",
+          "type": "radio",
+          "options": [
+            {
+              "label": "Yes",
+              "value": "yes"
+            },
+            {
+              "label": "No",
+              "value": "no"
+            }
+          ],
+          "optional": true
+        },
+        {
+          "key": "synthetic_pct",
+          "label": "Synthetic share (%)",
+          "type": "number",
+          "decimal": true,
+          "min_value": 0,
+          "max_value": 70,
+          "hint": "Hard cap is 70%.",
+          "show_if": {
+            "field": "uses_synthetic",
+            "in": [
+              "yes"
+            ]
+          },
+          "optional": true
+        },
+        {
+          "key": "hitl_role",
+          "label": "Human-in-the-loop role",
+          "type": "textarea",
+          "show_if": {
+            "field": "uses_synthetic",
+            "in": [
+              "yes"
+            ]
+          },
+          "optional": true
+        },
+        {
+          "key": "acceptance_criteria",
+          "label": "Acceptance criteria / quality bar",
+          "type": "textarea",
+          "hint": "What the customer will measure the pilot against.",
+          "optional": true
+        },
+        {
+          "key": "production_path",
+          "label": "Expected production scale if the pilot lands",
+          "type": "textarea",
+          "optional": true
+        }
+      ]
+    },
+    "production": {
+      "label": "Production",
+      "fields": [
+        {
+          "key": "contract_status",
+          "label": "MSA / contract status",
+          "type": "select",
+          "options": [
+            {
+              "label": "Signed",
+              "value": "signed"
+            },
+            {
+              "label": "In legal review",
+              "value": "review"
+            },
+            {
+              "label": "Not started",
+              "value": "none"
+            }
+          ]
+        },
+        {
+          "key": "contract_link",
+          "label": "Contract link",
+          "type": "url",
+          "show_if": {
+            "field": "contract_status",
+            "in": [
+              "signed",
+              "review"
+            ]
+          }
+        },
+        {
+          "key": "contract_blocker_owner",
+          "label": "Who is unblocking the contract?",
+          "type": "user",
+          "show_if": {
+            "field": "contract_status",
+            "in": [
+              "none",
+              "review"
+            ]
+          }
+        },
+        {
+          "key": "preceding_pilot",
+          "label": "Which pilot led to this?",
+          "type": "text",
+          "optional": true
+        },
+        {
+          "key": "acv",
+          "label": "Annual contract value (USD)",
+          "type": "number",
+          "decimal": true
+        },
+        {
+          "key": "monthly_volume",
+          "label": "Steady-state monthly volume (units)",
+          "type": "number",
+          "decimal": false
+        },
+        {
+          "key": "ramp_plan",
+          "label": "Ramp plan",
+          "type": "textarea",
+          "hint": "How volume scales from week 1 to steady state.",
+          "optional": true
+        },
+        {
+          "key": "staffing_model",
+          "label": "Staffing model",
+          "type": "select",
+          "options": [
+            {
+              "label": "Dedicated pod",
+              "value": "dedicated"
+            },
+            {
+              "label": "Shared pool",
+              "value": "shared"
+            },
+            {
+              "label": "Hybrid",
+              "value": "hybrid"
+            }
+          ]
+        },
+        {
+          "key": "pod_size",
+          "label": "Dedicated headcount",
+          "type": "number",
+          "decimal": false,
+          "show_if": {
+            "field": "staffing_model",
+            "in": [
+              "dedicated",
+              "hybrid"
+            ]
+          }
+        },
+        {
+          "key": "expertise",
+          "label": "Expertise required",
+          "type": "multi_select",
+          "options": [
+            {
+              "label": "Generalist",
+              "value": "generalist"
+            },
+            {
+              "label": "Software engineering",
+              "value": "swe"
+            },
+            {
+              "label": "Medical",
+              "value": "medical"
+            },
+            {
+              "label": "Legal",
+              "value": "legal"
+            },
+            {
+              "label": "Finance",
+              "value": "finance"
+            },
+            {
+              "label": "STEM / PhD",
+              "value": "phd"
+            },
+            {
+              "label": "Non-English language",
+              "value": "language"
+            }
+          ],
+          "optional": true
+        },
+        {
+          "key": "languages",
+          "label": "Languages / locales",
+          "type": "text",
+          "show_if": {
+            "field": "expertise",
+            "in": [
+              "language"
+            ]
+          },
+          "optional": true
+        },
+        {
+          "key": "sla_required",
+          "label": "Contractual SLA?",
+          "type": "radio",
+          "options": [
+            {
+              "label": "Yes",
+              "value": "yes"
+            },
+            {
+              "label": "No",
+              "value": "no"
+            }
+          ],
+          "optional": true
+        },
+        {
+          "key": "sla_terms",
+          "label": "SLA terms",
+          "type": "textarea",
+          "hint": "Turnaround, uptime, quality thresholds.",
+          "show_if": {
+            "field": "sla_required",
+            "in": [
+              "yes"
+            ]
+          },
+          "optional": true
+        },
+        {
+          "key": "sla_penalty",
+          "label": "Financial penalty attached to the SLA?",
+          "type": "radio",
+          "options": [
+            {
+              "label": "Yes",
+              "value": "yes"
+            },
+            {
+              "label": "No",
+              "value": "no"
+            }
+          ],
+          "show_if": {
+            "field": "sla_required",
+            "in": [
+              "yes"
+            ]
+          },
+          "optional": true
+        },
+        {
+          "key": "quality_bar",
+          "label": "Quality bar (% accuracy / agreement)",
+          "type": "number",
+          "decimal": true,
+          "optional": true
+        },
+        {
+          "key": "qa_layer",
+          "label": "Layered QC in place?",
+          "type": "radio",
+          "options": [
+            {
+              "label": "Yes",
+              "value": "yes"
+            },
+            {
+              "label": "No",
+              "value": "no"
+            }
+          ],
+          "optional": true
+        },
+        {
+          "key": "qa_sample_rate",
+          "label": "QC sample rate (%)",
+          "type": "number",
+          "decimal": true,
+          "show_if": {
+            "field": "qa_layer",
+            "in": [
+              "yes"
+            ]
+          },
+          "optional": true
+        },
+        {
+          "key": "qa_owner",
+          "label": "QC owner",
+          "type": "user",
+          "show_if": {
+            "field": "qa_layer",
+            "in": [
+              "yes"
+            ]
+          },
+          "optional": true
+        },
+        {
+          "key": "uses_synthetic",
+          "label": "Any synthetic content?",
+          "type": "radio",
+          "options": [
+            {
+              "label": "Yes",
+              "value": "yes"
+            },
+            {
+              "label": "No",
+              "value": "no"
+            }
+          ],
+          "optional": true
+        },
+        {
+          "key": "synthetic_pct",
+          "label": "Synthetic share (%)",
+          "type": "number",
+          "decimal": true,
+          "min_value": 0,
+          "max_value": 70,
+          "hint": "Hard cap is 70%.",
+          "show_if": {
+            "field": "uses_synthetic",
+            "in": [
+              "yes"
+            ]
+          },
+          "optional": true
+        },
+        {
+          "key": "hitl_role",
+          "label": "Human-in-the-loop role",
+          "type": "textarea",
+          "show_if": {
+            "field": "uses_synthetic",
+            "in": [
+              "yes"
+            ]
+          },
+          "optional": true
+        },
+        {
+          "key": "contains_pii",
+          "label": "Does this touch PII or client-confidential data?",
+          "type": "radio",
+          "options": [
+            {
+              "label": "Yes",
+              "value": "yes"
+            },
+            {
+              "label": "No",
+              "value": "no"
+            },
+            {
+              "label": "Unsure",
+              "value": "unsure"
+            }
+          ],
+          "optional": true
+        },
+        {
+          "key": "pii_categories",
+          "label": "Which categories?",
+          "type": "checkboxes",
+          "options": [
+            {
+              "label": "Names",
+              "value": "names"
+            },
+            {
+              "label": "Contact info",
+              "value": "contact"
+            },
+            {
+              "label": "Government IDs",
+              "value": "gov_id"
+            },
+            {
+              "label": "Health data",
+              "value": "health"
+            },
+            {
+              "label": "Financial data",
+              "value": "financial"
+            },
+            {
+              "label": "Client proprietary model outputs",
+              "value": "client_ip"
+            }
+          ],
+          "show_if": {
+            "field": "contains_pii",
+            "in": [
+              "yes",
+              "unsure"
+            ]
+          },
+          "optional": true
+        },
+        {
+          "key": "security_review",
+          "label": "Security review status",
+          "type": "select",
+          "options": [
+            {
+              "label": "Complete",
+              "value": "complete"
+            },
+            {
+              "label": "In progress",
+              "value": "in_progress"
+            },
+            {
+              "label": "Not started",
+              "value": "none"
+            },
+            {
+              "label": "Not required",
+              "value": "na"
+            }
+          ],
+          "show_if": {
+            "field": "contains_pii",
+            "in": [
+              "yes",
+              "unsure"
+            ]
+          },
+          "optional": true
+        },
+        {
+          "key": "security_owner",
+          "label": "Security review owner",
+          "type": "user",
+          "show_if": {
+            "field": "security_review",
+            "in": [
+              "in_progress",
+              "none"
+            ]
+          },
+          "optional": true
+        },
+        {
+          "key": "tooling",
+          "label": "Tooling",
+          "type": "select",
+          "options": [
+            {
+              "label": "Internal platform",
+              "value": "internal"
+            },
+            {
+              "label": "Customer's tool",
+              "value": "client"
+            },
+            {
+              "label": "Third-party vendor tool",
+              "value": "vendor"
+            },
+            {
+              "label": "Needs to be built",
+              "value": "build"
+            }
+          ],
+          "optional": true
+        },
+        {
+          "key": "vendor_name",
+          "label": "Which tool / vendor?",
+          "type": "text",
+          "show_if": {
+            "field": "tooling",
+            "in": [
+              "vendor",
+              "client"
+            ]
+          },
+          "optional": true
+        },
+        {
+          "key": "build_scope",
+          "label": "What has to be built, and by when?",
+          "type": "textarea",
+          "show_if": {
+            "field": "tooling",
+            "in": [
+              "build"
+            ]
+          },
+          "optional": true
+        },
+        {
+          "key": "exec_sponsor",
+          "label": "Exec sponsor",
+          "type": "user",
+          "optional": true
+        }
+      ]
+    }
+  }
+}

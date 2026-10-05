@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  launchd agent for the intake bot.
+
+  Starts it at login and restarts it if it exits, so the bot does not depend on
+  a terminal window staying open. It cannot help while the Mac is asleep or off
+  the network — launchd will simply keep retrying until the machine is back.
+
+  Install:  ./install-service.sh
+-->
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.deccan.slack-intake</string>
+
+    <key>ProgramArguments</key>
+    <array>
+        <string>/Users/Dishagra/Downloads/slack-project-intake/run.sh</string>
+    </array>
+
+    <key>WorkingDirectory</key>
+    <string>/Users/Dishagra/Downloads/slack-project-intake</string>
+
+    <key>RunAtLoad</key>
+    <true/>
+
+    <key>KeepAlive</key>
+    <true/>
+
+    <!-- Wait between restarts so a misconfigured bot cannot spin. -->
+    <key>ThrottleInterval</key>
+    <integer>30</integer>
+
+    <key>StandardOutPath</key>
+    <string>/Users/Dishagra/Downloads/slack-project-intake/logs/bot.log</string>
+    <key>StandardErrorPath</key>
+    <string>/Users/Dishagra/Downloads/slack-project-intake/logs/bot.log</string>
+</dict>
+</plist>
