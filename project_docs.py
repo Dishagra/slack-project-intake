@@ -116,6 +116,28 @@ def managed_text(run: Dict[str, Any], schema: Dict[str, Any], sheet_url: Optiona
                 lines.append(f"  {label}: {owners[key]}")
         lines.append("")
 
+    ing = state.get("ingestion")
+    if ing:
+        import ingestion
+
+        lines.append("Opportunity ingestion")
+        decision = ing.get("decision") or {}
+        if decision.get("value") == "go":
+            lines.append(f"  Go — {decision['at'][:10]}")
+        elif decision.get("value") == "no_go":
+            lines.append(f"  No-go — {decision['at'][:10]}: {decision.get('note', '')}")
+        else:
+            lines.append(f"  Awaiting go/no-go (due {ingestion.deadline(state):%d %b %H:%M} UTC)")
+        for element in ingestion.ELEMENTS:
+            signed = ing["signed"].get(element["key"])
+            mark = f"[x] signed {signed['at'][:10]}" if signed else "[ ]"
+            lines.append(f"    {mark} {element['label']}")
+        for role, label in ingestion.SIGNERS.items():
+            done = ing["signoffs"].get(role)
+            if done:
+                lines.append(f"    {label} signed off {done['at'][:10]}")
+        lines.append("")
+
     # The intake answers, in the order the form asked them.
     fields = [f for f in visible_fields(schema, run["project_type"], record)]
     lines.append("Intake")

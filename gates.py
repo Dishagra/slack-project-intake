@@ -116,6 +116,7 @@ STEPS: List[Dict[str, Any]] = [
 
 STEP_BY_KEY = {s["key"]: s for s in STEPS}
 SIGNOFF_LABELS = {
+    "requestor": "Requestor",
     "research_owner": "Research",
     "delivery_owner": "Delivery",
     "sales_owner": "Sales",
@@ -330,6 +331,16 @@ def _shown(value: Any) -> str:
     return text if len(text) <= 60 else text[:59] + "…"
 
 
+def open_ingestions() -> List[Dict[str, Any]]:
+    """Runs still waiting on a go/no-go, for the 36-hour reminder sweep."""
+    import ingestion
+
+    with _lock, _connect() as conn:
+        rows = conn.execute("SELECT id FROM runs").fetchall()
+    runs = [get_run(r["id"]) for r in rows]
+    return [r for r in runs if r and ingestion.awaiting_decision(r["state"])]
+
+
 def set_doc(run_id: str, doc_id: str, doc_url: str) -> None:
     """Remember the project's collaboration doc."""
     with _lock, _connect() as conn:
@@ -400,7 +411,11 @@ def audit_hours_elapsed(state: Dict[str, Any]) -> Optional[float]:
 
 def ship_blockers(state: Dict[str, Any]) -> List[str]:
     """Every reason this run may not ship yet, in the checklist's own terms."""
+    import ingestion
+
     blockers: List[str] = []
+    if not ingestion.complete(state):
+        blockers.append("Opportunity ingestion not signed off")
 
     for step in STEPS:
         checked = set(state["checked"].get(step["key"], []))
@@ -432,6 +447,13 @@ def status_line(state: Dict[str, Any]) -> str:
     closed = state.get("closed")
     if closed:
         return f"Closed — {closed['reason']}"
+
+    # Nothing downstream means much until Delivery has accepted the work.
+    import ingestion  # imported here: ingestion builds on this module
+
+    pending = ingestion.status(state)
+    if pending:
+        return pending
 
     if can_ship(state):
         return "Cleared to ship"

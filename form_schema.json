@@ -10,10 +10,74 @@
       "placeholder": "e.g. Multi-Turn Attack Bench"
     },
     {
+      "key": "ingestion_kind",
+      "label": "Is this a new opportunity?",
+      "type": "radio",
+      "hint": "Recurring accounts (GHealth, Bluedog, BotCo…) are ingested once, not per scope change.",
+      "options": [
+        {
+          "label": "New opportunity",
+          "value": "new"
+        },
+        {
+          "label": "Recurring account — ingestion already on file",
+          "value": "recurring"
+        }
+      ]
+    },
+    {
+      "key": "request_signal",
+      "label": "Request signal / type",
+      "type": "select",
+      "options": [
+        {
+          "label": "Internal — ML / FDE",
+          "value": "internal_mlfde"
+        },
+        {
+          "label": "Internal — Research / capability building",
+          "value": "internal_research"
+        },
+        {
+          "label": "Internal — Sample creation",
+          "value": "internal_sample"
+        },
+        {
+          "label": "Customer — Pilot",
+          "value": "customer_pilot"
+        },
+        {
+          "label": "Customer — Scope extension",
+          "value": "customer_extension"
+        }
+      ]
+    },
+    {
+      "key": "requesting_team",
+      "label": "Requesting team",
+      "type": "text",
+      "placeholder": "e.g. Research, FDE, Sales"
+    },
+    {
+      "key": "requestor",
+      "label": "Requestor",
+      "type": "user",
+      "hint": "Signs off the ingestion with the Delivery owner."
+    },
+    {
       "key": "account",
       "label": "Customer",
       "type": "text",
-      "placeholder": "e.g. Tencent"
+      "placeholder": "e.g. Tencent",
+      "optional": true,
+      "required_if": {
+        "field": "request_signal",
+        "in": [
+          "customer_pilot",
+          "customer_extension"
+        ]
+      },
+      "hint": "Required for customer pilots and scope extensions."
     },
     {
       "key": "workstream",
@@ -70,7 +134,15 @@
     {
       "key": "sales_owner",
       "label": "Sales owner",
-      "type": "user"
+      "type": "user",
+      "optional": true,
+      "required_if": {
+        "field": "request_signal",
+        "in": [
+          "customer_pilot",
+          "customer_extension"
+        ]
+      }
     },
     {
       "key": "urgency",
@@ -111,6 +183,91 @@
       "key": "target_date",
       "label": "Target delivery date",
       "type": "date"
+    },
+    {
+      "key": "ingestion_header",
+      "label": "— Opportunity ingestion: what Delivery needs to start —",
+      "type": "context",
+      "show_if": {
+        "field": "ingestion_kind",
+        "in": [
+          "new"
+        ]
+      }
+    },
+    {
+      "key": "spec_doc",
+      "label": "Specifications document",
+      "type": "url",
+      "hint": "Task and data requirements, taxonomy distribution, acceptance criteria. Smell test: could a non-technical person spin up a pipeline from this alone?",
+      "show_if": {
+        "field": "ingestion_kind",
+        "in": [
+          "new"
+        ]
+      }
+    },
+    {
+      "key": "task_volume",
+      "label": "Volume (number of tasks)",
+      "type": "text",
+      "placeholder": "An approximate range is fine, e.g. 500–800",
+      "show_if": {
+        "field": "ingestion_kind",
+        "in": [
+          "new"
+        ]
+      }
+    },
+    {
+      "key": "example_task",
+      "label": "Example task / trajectory, or customer spec doc",
+      "type": "url",
+      "optional": true,
+      "hint": "Strongly encouraged for research, pilot and capability-building work.",
+      "show_if": {
+        "field": "ingestion_kind",
+        "in": [
+          "new"
+        ]
+      }
+    },
+    {
+      "key": "crucial_details",
+      "label": "Anything else crucial to produce the right tasks",
+      "type": "textarea",
+      "optional": true,
+      "placeholder": "System prompts, tools or platform, customer quirks, nuances…",
+      "show_if": {
+        "field": "ingestion_kind",
+        "in": [
+          "new"
+        ]
+      }
+    },
+    {
+      "key": "tat_agreed",
+      "label": "TAT agreed upon",
+      "type": "text",
+      "placeholder": "End date, or number of days / weeks",
+      "show_if": {
+        "field": "ingestion_kind",
+        "in": [
+          "new"
+        ]
+      }
+    },
+    {
+      "key": "milestones",
+      "label": "Progress milestones aligned",
+      "type": "text",
+      "placeholder": "e.g. alternate-day check-ins, weekly output numbers",
+      "show_if": {
+        "field": "ingestion_kind",
+        "in": [
+          "new"
+        ]
+      }
     }
   ],
   "project_types": {
@@ -723,20 +880,6 @@
             ]
           },
           "optional": true
-        },
-        {
-          "key": "spec_doc_link",
-          "label": "Spec doc link",
-          "type": "url",
-          "optional": true,
-          "hint": "Same spec doc used for the T&Q independent audit. Do not write a new one.",
-          "show_if": {
-            "field": "intake_stage",
-            "in": [
-              "underway",
-              "ready"
-            ]
-          }
         }
       ]
     },

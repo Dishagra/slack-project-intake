@@ -27,6 +27,8 @@ from slack_bolt import App
 from slack_bolt.adapter.socket_mode import SocketModeHandler
 
 import gates
+import ingestion
+import ingestion_blocks
 import project_docs
 import sheets
 import watchdog
@@ -70,7 +72,7 @@ SCHEMA = load_schema()
 COMMON_KEYS = {f["key"] for f in SCHEMA.get("common_fields", [])}
 
 # Owners get @-mentioned in the channel summary so the right people see it land.
-OWNER_KEYS = ["research_owner", "delivery_owner", "sales_owner"]
+OWNER_KEYS = ["requestor", "research_owner", "delivery_owner", "sales_owner"]
 
 # Slack expires a trigger_id three seconds after the click, so a listener that
 # is still queued when its turn comes can no longer open a modal. Bolt's default
@@ -497,27 +499,69 @@ def _record_submission(body, client, view, state, project_type, fields) -> None:
     # anything tries to find it.
     _sheet_writer.submit(write_row)
 
-    if project_type in gates.GATED_TYPES:
-        try:
-            checklist = client.chat_postMessage(
-                channel=target,
-                thread_ts=posted["ts"],
-                text=f"Sample Creation Checklist — {project_name}",
-                blocks=checklist_blocks(gates.get_run(run_id)),
-            )
-            gates.set_message_ts(run_id, checklist["ts"])
-        except Exception:
-            # Without a message_ts the run can never refresh, and the submitter
-            # would see a clean summary with no reason to suspect anything.
-            logger.exception("Checklist post failed for run %s", run_id)
-            client.chat_postMessage(
-                channel=user_id,
-                text=(
-                    f"*{project_name}* was filed, but its checklist could not be "
-                    f"posted, so the Steps 2–6 gates are not being tracked. "
-                    f"Reference `{run_id}` when you report this."
-                ),
-            )
+    if ingestion.needed(state):
+        # Delivery accepts the work before anything else happens. The Steps 2-6
+        # checklist is posted once this is signed off, not now.
+        _post_ingestion(client, run_id, user_id)
+    else:
+        _post_checklist(client, run_id, user_id)
+
+
+def _post_ingestion(client, run_id: str, user_id: str) -> None:
+    ingestion.start(run_id)
+    run = gates.get_run(run_id)
+    try:
+        posted = client.chat_postMessage(
+            channel=run["channel"],
+            thread_ts=run["thread_ts"],
+            text=f"Opportunity ingestion — {run['project_name']}",
+            blocks=ingestion_blocks.blocks(run),
+        )
+        ingestion.set_message_ts(run_id, posted["ts"])
+    except Exception:
+        logger.exception("Ingestion post failed for run %s", run_id)
+        client.chat_postMessage(
+            channel=user_id,
+            text=(f"*{run['project_name']}* was filed, but its ingestion checklist could "
+                  f"not be posted, so Delivery's 36-hour clock is not being tracked. "
+                  f"Reference `{run_id}` when you report this."),
+        )
+        return
+    owners = run["owners"]
+    if owners.get("delivery_owner"):
+        client.chat_postMessage(
+            channel=run["channel"], thread_ts=run["thread_ts"],
+            text=(f"<@{owners['delivery_owner']}> — new opportunity for Delivery. Sign off the "
+                  f"elements above and make the go/no-go call within "
+                  f"{ingestion.SLA_HOURS} hours."),
+        )
+
+
+def _post_checklist(client, run_id: str, user_id: str) -> None:
+    """The Steps 2-6 checklist, for gated types once ingestion allows it."""
+    run = gates.get_run(run_id)
+    if run["project_type"] not in gates.GATED_TYPES or run.get("message_ts"):
+        return
+    try:
+        checklist = client.chat_postMessage(
+            channel=run["channel"],
+            thread_ts=run["thread_ts"],
+            text=f"Sample Creation Checklist — {run['project_name']}",
+            blocks=checklist_blocks(run),
+        )
+        gates.set_message_ts(run_id, checklist["ts"])
+    except Exception:
+        # Without a message_ts the run can never refresh, and the submitter
+        # would see a clean summary with no reason to suspect anything.
+        logger.exception("Checklist post failed for run %s", run_id)
+        client.chat_postMessage(
+            channel=user_id,
+            text=(
+                f"*{run['project_name']}* was filed, but its checklist could not be "
+                f"posted, so the Steps 2–6 gates are not being tracked. "
+                f"Reference `{run_id}` when you report this."
+            ),
+        )
 
 
 GONE_MESSAGE = (
@@ -586,6 +630,160 @@ def _parse_action(action_id: str, count: int):
     """Split an action id into its fixed number of parts, or None if malformed."""
     parts = action_id.split(":")
     return parts if len(parts) == count else None
+
+
+# --------------------------------------------------------------------------
+# opportunity ingestion
+# --------------------------------------------------------------------------
+
+def _refresh_ingestion(client, run_id: str) -> None:
+    run = gates.get_run(run_id)
+    ing = ingestion.of(run["state"]) if run else None
+    if not ing or not ing.get("message_ts"):
+        return
+    try:
+        client.chat_update(
+            channel=run["channel"], ts=ing["message_ts"],
+            text=f"Opportunity ingestion — {run['project_name']}",
+            blocks=ingestion_blocks.blocks(run),
+        )
+    except Exception:
+        logger.exception("Could not repaint the ingestion message for run %s", run_id)
+    _push_status(run_id)
+    _push_doc(run_id)
+
+
+def _say(client, run, text: str) -> None:
+    client.chat_postMessage(channel=run["channel"], thread_ts=run["thread_ts"], text=text)
+
+
+@app.action(re.compile(rf"^{ingestion_blocks.CHECK}:"))
+def on_ingest_check(ack, body, action, client):
+    ack()
+    run_id = action["action_id"].split(":")[1]
+    run = _run_or_tell(client, body, run_id)
+    if not run:
+        return
+    ok, message = ingestion.set_signed(
+        run_id, [o["value"] for o in action.get("selected_options", [])], body["user"]["id"]
+    )
+    if not ok:
+        _tell(client, body, message, run)
+    _refresh_ingestion(client, run_id)
+
+
+@app.action(re.compile(rf"^{ingestion_blocks.GO}:"))
+def on_ingest_go(ack, body, action, client):
+    ack()
+    run_id = action["action_id"].split(":")[1]
+    run = _run_or_tell(client, body, run_id)
+    if not run:
+        return
+    ok, message = ingestion.decide(run_id, "go", body["user"]["id"])
+    if not ok:
+        _tell(client, body, message, run)
+        return
+    owners = run["owners"]
+    who = " ".join(f"<@{owners[k]}>" for k in ingestion.SIGNERS if owners.get(k))
+    _say(client, run, f"✅ Delivery called *go* on {run['project_name']}. {who} — final sign-off "
+                      f"from each of you, and work starts.")
+    _refresh_ingestion(client, run_id)
+
+
+@app.action(re.compile(rf"^{ingestion_blocks.NO_GO}:"))
+def on_ingest_nogo(ack, body, action, client):
+    ack()
+    run_id = action["action_id"].split(":")[1]
+    run = _run_or_tell(client, body, run_id)
+    if run:
+        client.views_open(trigger_id=body["trigger_id"], view=ingestion_blocks.no_go_view(run_id))
+
+
+@app.view(ingestion_blocks.NO_GO_CALLBACK)
+def on_ingest_nogo_submitted(ack, body, view, client):
+    note = (view["state"]["values"]["text"]["text"].get("value") or "").strip()
+    run_id = view["private_metadata"]
+    ok, message = ingestion.decide(run_id, "no_go", body["user"]["id"], note)
+    if not ok:
+        ack(response_action="errors", errors={"text": message})
+        return
+    ack()
+    # No-go ends the opportunity; closing keeps the record and allows a reopen.
+    gates.close_run(run_id, body["user"]["id"], "no_go", note)
+    run = gates.get_run(run_id)
+    requestor = run["owners"].get("requestor")
+    _say(client, run, f"⛔ Delivery called *no-go* on {run['project_name']}"
+                      + (f" — <@{requestor}>" if requestor else "") + f"\n> {note}")
+    _refresh_ingestion(client, run_id)
+
+
+@app.action(re.compile(rf"^{ingestion_blocks.ASK}:"))
+def on_ingest_ask(ack, body, action, client):
+    ack()
+    run_id = action["action_id"].split(":")[1]
+    if _run_or_tell(client, body, run_id):
+        client.views_open(trigger_id=body["trigger_id"], view=ingestion_blocks.ask_view(run_id))
+
+
+@app.view(ingestion_blocks.ASK_CALLBACK)
+def on_ingest_ask_submitted(ack, body, view, client):
+    ack()
+    run_id = view["private_metadata"]
+    question = (view["state"]["values"]["text"]["text"].get("value") or "").strip()
+    if not question:
+        return
+    ingestion.ask(run_id, body["user"]["id"], question)
+    run = gates.get_run(run_id)
+    requestor = run["owners"].get("requestor")
+    _say(client, run, f"💬 <@{body['user']['id']}> asks"
+                      + (f" <@{requestor}>" if requestor else "") + f":\n> {question}")
+    _refresh_ingestion(client, run_id)
+
+
+@app.action(re.compile(rf"^{ingestion_blocks.SIGN}:"))
+def on_ingest_sign(ack, body, action, client):
+    ack()
+    parts = _parse_action(action["action_id"], 3)
+    if not parts:
+        return
+    _, run_id, role = parts
+    run = _run_or_tell(client, body, run_id)
+    if not run:
+        return
+    ok, message, completed = ingestion.sign_off(run_id, role, body["user"]["id"])
+    _tell(client, body, message, run)
+    _refresh_ingestion(client, run_id)
+    if completed:
+        _say(client, run, f"✅ Ingestion for *{run['project_name']}* is signed off. Work starts.")
+        _post_checklist(client, run_id, body["user"]["id"])
+
+
+def _ingestion_sweep(client, interval_seconds: int = 600) -> None:
+    """Remind Delivery before the 36-hour go/no-go deadline, and when it is missed."""
+
+    def run_forever():
+        while True:
+            try:
+                for run in gates.open_ingestions():
+                    for kind in ingestion.due_nudges(run["state"]):
+                        owner = run["owners"].get("delivery_owner")
+                        tag = f"<@{owner}>" if owner else "Delivery"
+                        if kind == "warn":
+                            text = (f"🟠 {tag} — go/no-go on *{run['project_name']}* is due in "
+                                    f"about {ingestion.SLA_HOURS - ingestion.WARN_HOURS} hours.")
+                        else:
+                            requestor = run["owners"].get("requestor")
+                            text = (f"🔴 {tag} — the {ingestion.SLA_HOURS}-hour go/no-go on "
+                                    f"*{run['project_name']}* has passed"
+                                    + (f". <@{requestor}>, chase if you need an answer." if requestor else "."))
+                        _say(client, run, text)
+                        ingestion.record_nudge(run["id"], kind)
+                        _refresh_ingestion(client, run["id"])
+            except Exception:
+                logger.exception("Ingestion sweep failed; will try again")
+            time.sleep(interval_seconds)
+
+    threading.Thread(target=run_forever, name="ingestion-sweep", daemon=True).start()
 
 
 # Action ids carry their run and step: "gate_check:<run_id>:<step_key>".
@@ -777,6 +975,15 @@ def _apply_edit(client, run_id, state, project_type, fields, user_id) -> None:
             channel=updated["channel"], thread_ts=updated["thread_ts"], text=note,
             blocks=[{"type": "section", "text": {"type": "mrkdwn", "text": f"⚠️ {note}"}}],
         )
+
+    before = run.get("record") or {}
+    touched = [k for k in ingestion.ELEMENT_KEYS if before.get(k) != record.get(k)]
+    cleared = ingestion.invalidate(run_id, touched) if touched else []
+    if cleared:
+        labels = [e["label"] for e in ingestion.ELEMENTS if e["key"] in cleared]
+        _say(client, updated, "↩️ These changed after Delivery signed them off, so they need "
+                              "signing again: " + ", ".join(labels))
+        _refresh_ingestion(client, run_id)
 
     _write_sheet_later(sheets.update_row, run_id, record)
     _push_doc(run_id)
@@ -1047,6 +1254,7 @@ if __name__ == "__main__":
     # very timestamp the gap is calculated from.
     _report_downtime()
     watchdog.start_heartbeat()
+    _ingestion_sweep(app.client)
 
     handler = SocketModeHandler(app, os.environ["SLACK_APP_TOKEN"])
 

@@ -10,6 +10,7 @@ from form_builder import (
     build_view,
     extract_state,
     is_input,
+    is_required,
     load_schema,
     trigger_keys,
     valid_initial,
@@ -64,10 +65,17 @@ check("labels are unique across the schema", not clashes, str(clashes))
 
 # 0c. the form has to stay short enough that people fill it honestly
 for name in schema["project_types"]:
-    state = {TYPE_KEY: name, "intake_stage": "scoping"}
+    # A new customer opportunity is the heaviest real case: it adds the
+    # ingestion elements plus customer and sales owner.
+    state = {TYPE_KEY: name, "intake_stage": "scoping",
+             "ingestion_kind": "new", "request_signal": "customer_pilot"}
     vis = [f for f in visible_fields(schema, name, state) if f["type"] != "context"]
-    req = [f for f in vis if not f.get("optional")]
-    check(f"{name} asks for at most 12 required fields", len(req) <= 12, str(len(req)))
+    # is_required, not "optional": required_if fields are optional on paper.
+    req = [f for f in vis if is_required(f, state)]
+    # Was 12. Delivery's Opportunity Ingestion Checklist mandates four opening
+    # questions and four of its six elements for every new opportunity, so the
+    # floor moved by eight. The budget still exists to stop creep beyond that.
+    check(f"{name} asks for at most 20 required fields", len(req) <= 20, str(len(req)))
     print(f"      {name}: {len(req)} required, {len(vis)} visible when scoping")
 
 # 0d. nothing started means the research questions stay out of the way
@@ -86,7 +94,8 @@ from form_builder import is_required  # noqa: E402
 
 def required_at(stage):
     """Input fields that must be answered at this stage. Headers are not fields."""
-    st = {TYPE_KEY: "sample", "intake_stage": stage}
+    st = {TYPE_KEY: "sample", "intake_stage": stage,
+          "ingestion_kind": "new", "request_signal": "internal_research"}
     return {
         f["key"]
         for f in visible_fields(schema, "sample", st)
@@ -96,7 +105,16 @@ def required_at(stage):
 
 scoping_req, underway_req, ready_req = (required_at(s) for s in ("scoping", "underway", "ready"))
 
-check("scoping requires only identity and the Step 0 gate", len(scoping_req) == 11, str(len(scoping_req)))
+IDENTITY = {"project_name", "workstream", "research_owner", "delivery_owner", "urgency",
+            "target_date"}
+OPENING = {"ingestion_kind", "request_signal", "requesting_team", "requestor"}
+INGESTION_REQUIRED = {"spec_doc", "task_volume", "tat_agreed", "milestones"}
+STEP0 = {"existing_asset", "go_decision", "intake_stage"}
+check("scoping requires identity, ingestion and the Step 0 gate only",
+      scoping_req == IDENTITY | OPENING | INGESTION_REQUIRED | STEP0,
+      str(sorted(scoping_req ^ (IDENTITY | OPENING | INGESTION_REQUIRED | STEP0))))
+check("internal work does not require a customer", "account" not in scoping_req)
+check("internal work does not require a sales owner", "sales_owner" not in scoping_req)
 check("scoping requires no research answers", "failure_pattern" not in scoping_req)
 check("underway requires the research answers",
       {"failure_pattern", "taxonomy_status", "benchmark_status", "endpoints_probed"} <= underway_req)
@@ -107,7 +125,7 @@ check("ready requires delivery and engineering too",
 check("requirements only ever grow", scoping_req <= underway_req <= ready_req)
 check("underway and ready are no longer identical", underway_req != ready_req)
 check("optional extras stay optional at every stage",
-      not any("spec_doc_link" in r for r in (scoping_req, underway_req, ready_req)))
+      not any("example_task" in r for r in (scoping_req, underway_req, ready_req)))
 check("pipeline_relevance stays optional", "pipeline_relevance" not in ready_req)
 print(f"      required: {len(scoping_req)} scoping → {len(underway_req)} underway → {len(ready_req)} ready")
 
@@ -251,15 +269,15 @@ check("email valid", valid_initial("email", "a@b.co"))
 check("email half-typed is not", not valid_initial("email", "a@b"))
 check("plain text is always fine", valid_initial("text", "anything at all"))
 
-partial = build_view(schema, "sample", {TYPE_KEY: "sample", "intake_stage": "underway", "spec_doc_link": "docs.google.com/x"})
-spec = next(b for b in partial["blocks"] if b.get("block_id") == "spec_doc_link")
+partial = build_view(schema, "sample", {TYPE_KEY: "sample", "ingestion_kind": "new", "spec_doc": "docs.google.com/x"})
+spec = next(b for b in partial["blocks"] if b.get("block_id") == "spec_doc")
 check("partial url is not sent as initial_value", "initial_value" not in spec["element"])
 check("user is told it was cleared", "Cleared" in spec.get("hint", {}).get("text", ""),
       spec.get("hint", {}).get("text", ""))
 check("hint names the fix", "https://example.com" in spec.get("hint", {}).get("text", ""))
 
-good = build_view(schema, "sample", {TYPE_KEY: "sample", "intake_stage": "underway", "spec_doc_link": "https://x.test/spec"})
-spec = next(b for b in good["blocks"] if b.get("block_id") == "spec_doc_link")
+good = build_view(schema, "sample", {TYPE_KEY: "sample", "ingestion_kind": "new", "spec_doc": "https://x.test/spec"})
+spec = next(b for b in good["blocks"] if b.get("block_id") == "spec_doc")
 check("valid url round-trips", spec["element"]["initial_value"] == "https://x.test/spec")
 check("valid url has no cleared note", "Cleared" not in spec.get("hint", {}).get("text", ""))
 
@@ -298,7 +316,7 @@ fake_view = {
             },
             "research_owner": {"research_owner": {"type": "users_select", "selected_user": "U123"}},
             "target_date": {"target_date": {"type": "datepicker", "selected_date": "2026-01-01"}},
-            "spec_doc_link": {"spec_doc_link": {"type": "url_text_input", "value": "https://x.test/s"}},
+            "spec_doc": {"spec_doc": {"type": "url_text_input", "value": "https://x.test/s"}},
             "seed_count": {"seed_count": {"type": "number_input", "value": "3"}},
             "empty": {"empty": {"type": "plain_text_input", "value": None}},
         }
@@ -310,7 +328,7 @@ check("extract multi", got["endpoints_probed"] == ["customer", "sota"])
 check("extract checkboxes", got["pii_categories"] == ["names"])
 check("extract user", got["research_owner"] == "U123")
 check("extract date", got["target_date"] == "2026-01-01")
-check("extract url", got["spec_doc_link"] == "https://x.test/s")
+check("extract url", got["spec_doc"] == "https://x.test/s")
 check("extract number", got["seed_count"] == "3")
 check("empty dropped", "empty" not in got)
 

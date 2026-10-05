@@ -156,6 +156,40 @@ After editing, check the schema before restarting:
 .venv/bin/python test_form.py
 ```
 
+## Opportunity ingestion
+
+From Delivery's *Opportunity Ingestion Checklist*: every new opportunity —
+internal or customer-driven — gives Delivery six things before work starts, and
+Delivery owes a go/no-go within **36 hours** of the request.
+
+The form opens with four questions for every type: whether this is a new
+opportunity or a recurring account, the request signal, the requesting team and
+the requestor. New opportunities then answer the six elements — specifications
+document, volume, example task or customer spec, other crucial details, TAT and
+progress milestones. **Recurring accounts** (GHealth, Bluedog, BotCo…) skip them:
+they are ingested once, not on every scope change.
+
+Customer and Sales owner are required only for customer pilots and scope
+extensions — internal ML/FDE and research requests have neither.
+
+Submitting posts the ingestion checklist in the thread and pings the Delivery
+owner. From there:
+
+| The doc says | What the bot does |
+| --- | --- |
+| Each element signed off, with a date | Only the Delivery owner can tick them; each tick is dated, and re-ticking keeps the original date |
+| Go/no-go within 36 hours | A countdown on the message; a reminder at 30 hours and another when it passes |
+| Clarifications come back to the requestor | *Ask the requestor* posts the question in the thread, tagged |
+| Final sign-off: requestor + Delivery owner | Go unlocks both sign-off buttons; each accepts only the named person |
+
+Go needs every element signed off. A no-go needs a reason the requestor can act
+on, and closes the project — reopenable, nothing deleted. Editing an element
+after Delivery signed it clears that sign-off, since they signed off on what they
+read; once go is called the ingestion is settled and edits leave it alone.
+
+For Samples, the Steps 2–6 checklist is posted only once ingestion is fully
+signed off. Ship stays blocked until then as well.
+
 ## Gate tracking
 
 Submitting a **Sample** posts the summary to the channel, then opens the Steps
