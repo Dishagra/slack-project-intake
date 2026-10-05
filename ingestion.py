@@ -123,12 +123,54 @@ def status(state: Dict[str, Any], now: Optional[dt.datetime] = None) -> Optional
 # changing state — every mutation goes through gates._mutate, so it is atomic
 # --------------------------------------------------------------------------
 
-def start(run_id: str) -> Dict[str, Any]:
+def _empty(value: Any) -> bool:
+    return value in (None, "", []) or (isinstance(value, str) and not value.strip())
+
+
+def _apply_auto(ing: Dict[str, Any], record: Dict[str, Any]) -> None:
+    """Optional elements left blank need no checking, so they count as signed.
+
+    Recorded as automatic rather than as Delivery's sign-off, so nobody reads a
+    blank field as something Delivery reviewed. If one is filled in later it
+    drops back to needing a real sign-off; if a filled one is emptied, it goes
+    automatic again.
+    """
+    when = _iso(_now())
+    for element in ELEMENTS:
+        if not element.get("optional"):
+            continue
+        key = element["key"]
+        current = ing["signed"].get(key)
+        if _empty(record.get(key)):
+            if not current:
+                ing["signed"][key] = {"by": "auto", "at": when, "auto": True}
+        elif current and current.get("auto"):
+            ing["signed"].pop(key)
+
+
+def is_auto(ing: Dict[str, Any], key: str) -> bool:
+    return bool((ing.get("signed") or {}).get(key, {}).get("auto"))
+
+
+def start(run_id: str, record: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
     def change(state, owners):
-        state.setdefault("ingestion", fresh())
+        ing = state.setdefault("ingestion", fresh())
+        _apply_auto(ing, record or {})
         return state
 
     return gates._mutate(run_id, change)
+
+
+def sync_auto(run_id: str, record: Dict[str, Any]) -> None:
+    """Re-apply the blank-optional rule after an edit. Settled once go is called."""
+
+    def change(state, owners):
+        ing = state.get("ingestion")
+        if ing and (ing.get("decision") or {}).get("value") != "go":
+            _apply_auto(ing, record)
+        return state
+
+    gates._mutate(run_id, change)
 
 
 def set_message_ts(run_id: str, ts: str) -> None:
@@ -163,10 +205,12 @@ def set_signed(run_id: str, keys: List[str], user_id: str) -> Tuple[bool, str]:
             outcome["message"] = "The go decision is already made. Elements are locked."
             return state
         when = _iso(_now())
+        auto = {k: v for k, v in ing["signed"].items() if v.get("auto")}
         ing["signed"] = {
             k: ing["signed"].get(k) or {"by": user_id, "at": when}
-            for k in ELEMENT_KEYS if k in keys
+            for k in ELEMENT_KEYS if k in keys and k not in auto
         }
+        ing["signed"].update(auto)
         outcome["ok"] = True
         return state
 

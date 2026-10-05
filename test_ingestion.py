@@ -36,7 +36,7 @@ def new_run(record=RECORD):
     rid = gates.create_run("C1", "1.1", record["project_name"], "pilot",
                            {"requestor": REQ, "delivery_owner": DEL}, record=record)
     if ingestion.needed(record):
-        ingestion.start(rid)
+        ingestion.start(rid, record)
     return rid
 
 
@@ -84,7 +84,10 @@ check("an outsider cannot call go", not ok)
 
 # --- an edit clears sign-offs on what changed ------------------------------
 cleared = ingestion.invalidate(rid, ["spec_doc", "crucial_details"])
-check("editing a signed element clears it", cleared == ["spec_doc"], str(cleared))
+ingestion.sync_auto(rid, RECORD)  # the app always re-applies the blank rule after an edit
+check("editing a signed element clears it", "spec_doc" in cleared, str(cleared))
+check("a still-blank optional element stays settled",
+      ingestion.is_auto(state(rid)["ingestion"], "crucial_details"))
 check("other sign-offs survive the edit", "task_volume" in state(rid)["ingestion"]["signed"])
 
 # --- go, then the final sign-off pair --------------------------------------
@@ -109,6 +112,41 @@ check("one signature is not enough", not ingestion.complete(state(rid)))
 ok, msg, done = ingestion.sign_off(rid, "delivery_owner", DEL)
 check("both signatures complete ingestion", ok and done)
 check("complete() agrees", ingestion.complete(state(rid)))
+
+# --- blank optional elements need no sign-off --------------------------------
+auto_run = new_run()  # RECORD leaves example_task and crucial_details blank
+ing = state(auto_run)["ingestion"]
+check("blank optional elements are settled at submission",
+      ingestion.is_auto(ing, "example_task") and ingestion.is_auto(ing, "crucial_details"))
+check("required elements are not", not any(k in ing["signed"] for k in
+      ("spec_doc", "task_volume", "tat_agreed", "milestones")))
+check("auto entries are not recorded as Delivery's sign-off",
+      ing["signed"]["example_task"]["by"] == "auto")
+
+ok, _ = ingestion.set_signed(auto_run, ["spec_doc", "task_volume", "tat_agreed", "milestones"], DEL)
+ok, msg = ingestion.decide(auto_run, "go", DEL)
+check("go needs only the elements that were provided", ok, msg)
+
+untick = new_run()
+ingestion.set_signed(untick, [], DEL)
+check("unticking everything leaves the automatic ones alone",
+      ingestion.is_auto(state(untick)["ingestion"], "example_task"))
+
+filled = dict(RECORD, example_task="https://x.test/example")
+ingestion.sync_auto(untick, filled)
+check("filling an optional element means Delivery must check it",
+      "example_task" not in state(untick)["ingestion"]["signed"])
+ingestion.sync_auto(untick, RECORD)
+check("emptying it again settles it again", ingestion.is_auto(state(untick)["ingestion"], "example_task"))
+
+opts = [o["value"] for b in ingestion_blocks.blocks(gates.get_run(untick))
+        if b["type"] == "actions" for e in b["elements"] if e.get("type") == "checkboxes"
+        for o in e["options"]]
+check("blank optional elements are not offered for ticking",
+      "example_task" not in opts and "crucial_details" not in opts, str(opts))
+check("provided elements are", "spec_doc" in opts and "milestones" in opts)
+check("blank ones read as not provided",
+      "optional, not provided" in json.dumps(ingestion_blocks.blocks(gates.get_run(untick))))
 
 # --- no-go needs a reason ---------------------------------------------------
 rid2 = new_run()

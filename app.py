@@ -508,7 +508,7 @@ def _record_submission(body, client, view, state, project_type, fields) -> None:
 
 
 def _post_ingestion(client, run_id: str, user_id: str) -> None:
-    ingestion.start(run_id)
+    ingestion.start(run_id, gates.get_run(run_id).get("record") or {})
     run = gates.get_run(run_id)
     try:
         posted = client.chat_postMessage(
@@ -651,6 +651,10 @@ def _refresh_ingestion(client, run_id: str) -> None:
         logger.exception("Could not repaint the ingestion message for run %s", run_id)
     _push_status(run_id)
     _push_doc(run_id)
+
+
+def _blank(value) -> bool:
+    return value in (None, "", []) or (isinstance(value, str) and not value.strip())
 
 
 def _say(client, run, text: str) -> None:
@@ -979,6 +983,10 @@ def _apply_edit(client, run_id, state, project_type, fields, user_id) -> None:
     before = run.get("record") or {}
     touched = [k for k in ingestion.ELEMENT_KEYS if before.get(k) != record.get(k)]
     cleared = ingestion.invalidate(run_id, touched) if touched else []
+    if touched:
+        ingestion.sync_auto(run_id, record)
+    # A blank optional element going automatic is not something anyone needs to redo.
+    cleared = [k for k in cleared if not _blank(record.get(k))]
     if cleared:
         labels = [e["label"] for e in ingestion.ELEMENTS if e["key"] in cleared]
         _say(client, updated, "↩️ These changed after Delivery signed them off, so they need "

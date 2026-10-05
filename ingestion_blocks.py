@@ -67,7 +67,12 @@ def blocks(run: Dict[str, Any]) -> List[Dict[str, Any]]:
         value = record.get(element["key"])
         shown = str(value).strip() if value not in (None, "", []) else "_not provided_"
         signed = ing["signed"].get(element["key"])
-        mark = f"  ✓ _signed {_when(signed['at'])}_" if signed else ""
+        if signed and signed.get("auto"):
+            mark = "  _— optional, not provided_"
+        elif signed:
+            mark = f"  ✓ _signed {_when(signed['at'])}_"
+        else:
+            mark = ""
         out.append({"type": "section", "text": {"type": "mrkdwn",
                                                 "text": clamp(f"*{element['label']}*{mark}\n{shown}")}})
 
@@ -77,8 +82,9 @@ def blocks(run: Dict[str, Any]) -> List[Dict[str, Any]]:
         return out
 
     if not decided:
+        # Blank optional elements are already settled; there is nothing to tick.
         options = [{"text": {"type": "plain_text", "text": e["label"][:75]}, "value": e["key"]}
-                   for e in ingestion.ELEMENTS]
+                   for e in ingestion.ELEMENTS if not ingestion.is_auto(ing, e["key"])]
         element = {"type": "checkboxes", "action_id": f"{CHECK}:{run_id}", "options": options}
         initial = [o for o in options if o["value"] in ing["signed"]]
         if initial:
