@@ -170,6 +170,23 @@ def _forget(view_id: str) -> None:
         _answers.pop(view_id, None)
 
 
+# Every click and submission, logged as it arrives. Without this, "the user didn't
+# click" and "the click never reached us" look identical — which is exactly the
+# question that matters when a button seems to do nothing.
+@app.middleware
+def log_interaction(body, next, logger):
+    kind = body.get("type") or ("command" if body.get("command") else "event")
+    user = (body.get("user") or {}).get("id") or body.get("user_id")
+    if kind == "block_actions":
+        what = ",".join(a.get("action_id", "?") for a in body.get("actions", []))
+    elif kind in ("view_submission", "view_closed"):
+        what = (body.get("view") or {}).get("callback_id", "?")
+    else:
+        what = body.get("command") or kind
+    logging.getLogger("interactions").info("%s %s by %s", kind, what, user)
+    return next()
+
+
 # --------------------------------------------------------------------------
 # helpers
 # --------------------------------------------------------------------------
